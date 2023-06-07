@@ -1,0 +1,370 @@
+USE sql_store;
+
+SELECT 
+	p.product_id,
+    p.name,
+    oi.quantity
+FROM products AS p
+LEFT JOIN order_items AS oi
+	ON p.product_id = oi.product_id;
+    
+SELECT 
+	c.customer_id,
+    c.first_name,
+    o.order_id,
+    sh.name AS shipper
+FROM customers c
+LEFT JOIN orders AS o
+	ON c.customer_id = o.customer_id
+LEFT JOIN shippers AS sh
+	ON o.shipper_id = sh.shipper_id
+ORDER BY c.customer_id;
+
+SELECT 
+	o.order_date,
+    o.order_id,
+    c.first_name AS customer,
+    sh.name AS shipper,
+    os.name AS status 
+FROM orders AS o
+JOIN customers AS c
+	ON o.customer_id = c.customer_id
+LEFT JOIN shippers AS sh
+	ON o.shipper_id = sh.shipper_id
+JOIN order_statuses AS os
+	ON o.status = os.order_status_id;
+
+USE sql_hr;
+
+SELECT 
+	e.employee_id,
+    e.first_name,
+    m.first_name AS manager 
+FROM employees AS e
+LEFT JOIN employees AS m
+	ON e.reports_to = m.employee_id;
+
+USE sql_store;
+
+SELECT 
+	o.order_id,
+    c.first_name,
+    sh.name AS shipper
+FROM orders AS o
+JOIN customers AS c
+-- if o.customer_id = c.customer_id
+	USING (customer_id)
+LEFT JOIN shippers AS sh
+	USING (shipper_id);
+    
+SELECT *
+FROM order_items AS oi
+JOIN order_item_notes AS oin
+	USING (order_id, product_id);
+
+USE sql_invoicing;
+
+SELECT 
+	p.date,
+    c.name,
+    p.amount,
+    pm.name
+FROM clients AS c 
+JOIN payments AS p
+	USING (client_id)
+LEFT JOIN payment_methods AS pm 
+	ON p.payment_method = pm.payment_method_id; 
+
+SELECT 
+	o.order_id,
+    c.customer_id
+FROM orders o
+NATURAL JOIN customers c;
+
+SELECT 
+	c.first_name AS customer,
+    p.name AS product 
+FROM customers c
+CROSS JOIN products p
+ORDER by c.first_name;
+
+SELECT 
+	sh.name,
+    p.name
+FROM shippers AS sh, products AS p
+ORDER BY sh.name;
+
+SELECT *
+FROM shippers AS sh 
+CROSS JOIN products AS p
+ORDER BY sh.name;
+
+SELECT 
+	order_id,
+    order_date,
+    'Active' AS status
+FROM orders
+WHERE order_date >= '2019-01-01'
+UNION
+SELECT 
+	order_id,
+    order_date,
+    'Archive' AS status
+FROM orders
+WHERE order_date < '2019-01-01';
+
+SELECT 
+	name AS full_name
+FROM shippers
+UNION
+SELECT 
+	first_name 
+FROM customers;
+
+SELECT 
+	customer_id,
+    first_name,
+    points, 
+    'Bronze' AS tier 
+FROM customers  
+WHERE points < 2000
+UNION 
+SELECT 
+	customer_id,
+    first_name,
+    points,
+    'Silver' AS tier 
+FROM customers
+WHERE points BETWEEN 2000 AND 3000
+UNION 
+SELECT 
+	customer_id,
+    first_name,
+    points,
+    'Gold' AS tier 
+FROM customers
+WHERE points > 3000
+ORDER BY first_name;
+
+INSERT INTO customers
+VALUES (DEFAULT, 
+		'John',
+        'Smith', 
+        '1990-01-01',
+		NULL,
+        '123 River Street',
+        'Brookline',
+        'MA',
+        DEFAULT); 
+
+INSERT INTO shippers (name)
+VALUES ('Shipper1'),
+		('Shipper2'),
+		('Shipper3');
+        
+INSERT INTO products 
+VALUES (DEFAULT, 'Product1', 10, 7.5),
+		(DEFAULT, 'Product2', 10, 7.5),	
+		(DEFAULT, 'Product3', 10, 7.5);
+        
+INSERT INTO orders (customer_id, order_date, status)
+VALUES (1, '2019-01-02', 1);
+
+INSERT INTO order_items
+VALUES 
+	(LAST_INSERT_ID(), 1, 1, 2.95),
+	(LAST_INSERT_ID(), 2, 1, 3.95);
+
+CREATE TABLE orders_archive AS
+SELECT * FROM orders;
+
+ALTER TABLE orders_archive 
+RENAME AS orders_archived;
+
+INSERT INTO orders_archived
+SELECT *
+FROM orders
+WHERE order_date < '2019-01-01';
+
+USE sql_invoicing;
+
+CREATE TABLE invoices_archived AS
+SELECT 
+	i.invoice_id,
+    i.number,
+    c.name AS client,
+    i.invoice_total,
+    i.payment_total,
+    i.due_date
+FROM invoices AS i
+JOIN clients c
+	USING (client_id)
+WHERE payment_date IS NOT NULL; 
+
+UPDATE invoices 
+SET payment_total = invoice_total * 0.5, 
+	payment_date = due_date
+WHERE invoice_id = 3;
+
+USE sql_invoicing;
+
+UPDATE invoices 
+SET payment_total = invoice_total * 0.5, 
+	payment_date = due_date
+WHERE client_id = 3;
+
+USE sql_store;
+
+UPDATE customers
+SET points = points + 50
+WHERE birth_date < '1990-01-01';
+
+UPDATE invoices 
+SET 
+	payment_total = invoice_total * 0.5, 
+	payment_date = due_date
+WHERE client_id IN
+	(SELECT client_id
+	FROM clients
+	WHERE state IN ('CA', 'NY'));
+
+USE sql_store;
+
+UPDATE orders
+SET 
+	comments = 'Gold Customer'
+WHERE customer_id IN
+		(SELECT customer_id
+        FROM customers
+        WHERE points > 3000); 
+ 
+ DELETE FROM invoices
+ WHERE client_id = 2;
+
+SELECT 
+	MAX(invoice_total) AS highest,
+	MIN(invoice_total) AS lowest,
+	AVG(invoice_total) AS average 
+FROM invoices;
+
+SELECT 
+	MAX(invoice_total) AS highest,
+	MIN(invoice_total) AS lowest,
+	AVG(invoice_total) AS average, 
+    SUM(invoice_total) AS total,
+    COUNT(DISTINCT client_id) AS total_records
+FROM invoices
+WHERE invoice_date > '2019-07-01';
+
+SELECT 
+	'First Half of 2019' AS date_range,
+    SUM(invoice_total) AS total_sales,
+    SUM(payment_total) AS total_payments,
+    SUM(invoice_total - payment_total) AS expected 
+FROM invoices 
+WHERE invoice_date 
+	BETWEEN '2019-01-01' AND '2019-06-30'
+UNION 
+SELECT 
+	'Second Half of 2019' AS date_range,
+    SUM(invoice_total) AS total_sales,
+    SUM(payment_total) AS total_payments,
+    SUM(invoice_total - payment_total) AS expected 
+FROM invoices 
+WHERE invoice_date 
+	BETWEEN '2019-07-01' AND '2019-12-31'
+UNION
+SELECT 
+	'Total' AS date_range,
+    SUM(invoice_total) AS total_sales,
+    SUM(payment_total) AS total_payments,
+    SUM(invoice_total - payment_total) AS expected 
+FROM invoices; 
+
+SELECT 
+	client_id,
+    SUM(invoice_total) AS total_sales
+FROM invoices
+WHERE invoice_date > '2019-07-01'
+GROUP BY client_id
+ORDER BY total_sales DESC;
+
+SELECT 
+	state,
+    city,
+    SUM(invoice_total) AS total_sales
+FROM invoices
+JOIN clients USING (client_id)
+GROUP BY state, city;
+
+SELECT 
+	date,
+    pm.name AS payment_method,
+    SUM(amount) AS total_payments
+FROM payments AS p
+JOIN payment_methods AS pm
+	ON p.payment_method = pm.payment_method_id
+GROUP BY date, payment_method
+ORDER BY date ASC;
+
+SELECT
+	client_id,
+    SUM(invoice_id) AS total_sales
+FROM invoices
+GROUP BY client_id
+HAVING total_sales > 500;
+
+SELECT
+	client_id,
+    SUM(invoice_id) AS total_sales,
+    COUNT(*) AS number_of_invoices 
+FROM invoices
+GROUP BY client_id
+HAVING total_sales > 500 AND number_of_invoices > 5;
+
+USE sql_store;    
+
+SELECT 
+	c.customer_id,
+    c.first_name,
+    c.last_name,
+    SUM(oi.quantity * oi.unit_price) AS total_sales 
+FROM customers AS c
+JOIN orders AS o
+	USING (customer_id)
+JOIN order_items AS oi 
+	USING (order_id)
+WHERE state = 'VA'
+GROUP BY 
+	c.customer_id,
+    c.first_name,
+    c.last_name
+HAVING total_sales > 100;
+
+USE sql_invoicing; 
+
+SELECT 
+	state,
+    city, 
+    SUM(invoice_total) AS total_sales 
+FROM invoices AS o
+JOIN clients AS c
+	USING (client_id)
+GROUP BY state, city WITH ROLLUP;
+
+SELECT 
+	pm.name AS payment_method,
+    SUM(amount) AS total
+FROM payments AS p
+JOIN payment.methods AS pm 
+	ON p.payment_method = pm.payment_method_id 
+GROUP BY pm.name WITH ROLLUP;
+
+
+
+
+
+
+
+
+
