@@ -1,0 +1,64 @@
+- Return the year, country, medals, and the maximum medals earned so far for each country, ordered by year in ascending order.
+
+WITH Country_Medals AS (
+  SELECT
+    Year, Country, COUNT(*) AS Medals
+  FROM Summer_Medals
+  WHERE
+    Country IN ('CHN', 'KOR', 'JPN')
+    AND Medal = 'Gold' AND Year >= 2000
+  GROUP BY Year, Country)
+
+SELECT
+  -- Return the max medals earned so far per country
+  Country,
+  Year,
+  Medals,
+  MAX(Medals) OVER (PARTITION BY Country
+                        ORDER BY Year ASC) AS Max_Medals
+FROM Country_Medals
+ORDER BY Country ASC, Year ASC;
+
+
+
+- Calculate the 3-year moving average of medals earned.
+
+WITH Russian_Medals AS (
+  SELECT
+    Year, COUNT(*) AS Medals
+  FROM Summer_Medals
+  WHERE
+    Country = 'RUS'
+    AND Medal = 'Gold'
+    AND Year >= 1980
+  GROUP BY Year)
+
+SELECT
+  Year, Medals,
+  AVG(Medals) OVER
+    (ORDER BY Year ASC
+     ROWS BETWEEN
+     2 PRECEDING AND CURRENT ROW) AS Medals_MA
+FROM Russian_Medals
+ORDER BY Year ASC;
+
+
+
+- Calculate the 3-year moving sum of medals earned per country.
+
+WITH Country_Medals AS (
+  SELECT
+    Year, Country, COUNT(*) AS Medals
+  FROM Summer_Medals
+  GROUP BY Year, Country)
+
+SELECT
+  Year, Country, Medals,
+  -- Calculate each country's 3-game moving total
+  SUM(Medals) OVER
+    (PARTITION BY Country
+     ORDER BY Year ASC
+     ROWS BETWEEN
+     2 PRECEDING AND CURRENT ROW) AS Medals_MA
+FROM Country_Medals
+ORDER BY Country ASC, Year ASC;
