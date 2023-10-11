@@ -1,0 +1,127 @@
+- Trim digits 0-9, #, /, ., and spaces from the beginning and end of street.
+- Select distinct original street value and the corrected street value.
+- Order the results by the original street value.
+
+SELECT distinct street,
+       -- Trim off unwanted characters from street
+       trim(street, '0123456789 #/.') AS cleaned_street
+  FROM evanston311
+ ORDER BY street;
+
+
+
+- Use ILIKE to count rows in evanston311 where the description contains 'trash' or 'garbage' regardless of case.
+
+-- Count rows
+SELECT count(*)
+  FROM evanston311
+ -- Where description includes trash or garbage
+ WHERE description ILIKE '%trash%' 
+    OR description ILIKE '%garbage%';
+
+-- Select categories containing Trash or Garbage
+SELECT category
+  FROM evanston311
+ -- Use LIKE
+ WHERE category LIKE '%Trash%'
+    OR category LIKE '%Garbage%';
+
+-- Count rows
+SELECT count(*)
+  FROM evanston311 
+ -- description contains trash or garbage
+ WHERE (description ILIKE '%trash%'
+    OR description ILIKE '%garbage%') 
+ -- category does not contain Trash or Garbage
+   AND category NOT LIKE '%Trash%'
+   AND category NOT LIKE '%Garbage%';
+
+-- Count rows with each category
+SELECT category, count(*)
+  FROM evanston311 
+ WHERE (description ILIKE '%trash%'
+    OR description ILIKE '%garbage%') 
+   AND category NOT LIKE '%Trash%'
+   AND category NOT LIKE '%Garbage%'
+ -- What are you counting?
+ GROUP BY category
+ --- order by most frequent values
+ ORDER BY count DESC
+ LIMIT 10;
+
+
+
+- There are multiple trim functions; use ltrim() one to only trim spaces from the start.
+- Concat() and || handle NULL values differently. Use concat() as the instructions indicate.
+
+-- Concatenate house_num, a space, and street
+-- and trim spaces from the start of the result
+SELECT ltrim(concat(house_num, ' ', street)) AS address
+  FROM evanston311;
+
+
+
+- Use split_part() to select the first word in street; alias the result as street_name.
+- Also select the count of each value of street_name.
+
+-- Select the first word of the street value
+SELECT split_part(street, ' ', 1) AS street_name, 
+       count(*)
+  FROM evanston311
+ GROUP BY street_name
+ ORDER BY count DESC
+ LIMIT 20;
+
+
+
+- Select the current timestamp and the current timestamp plus 5 minutes.
+
+-- Select the current timestamp, 
+-- and the current timestamp + 5 minutes
+SELECT now(),
+       now() + '5 minutes'::interval;
+
+
+
+- Compute the average difference between the completion timestamp and the creation timestamp by category.
+- Order the results with the largest average time to complete the request first.
+
+-- Select the category and the average completion time by category
+SELECT category, 
+       avg(date_completed - date_created) AS completion_time
+  FROM evanston311
+ GROUP BY category
+-- Order the results
+ ORDER BY completion_time DESC;
+
+
+
+- What is the most common hour of the day for requests to be created?
+
+-- Get the hour and count requests
+SELECT date_part('hour', date_created) AS hour,
+       count(*)
+  FROM evanston311
+ GROUP BY hour
+ -- Order results to select most common
+ ORDER BY count DESC
+ LIMIT 1;
+
+
+
+- Select the name of the day of the week the request was created (date_created) as day.
+- Select the mean time between the request completion (date_completed) and request creation as duration.
+- Group by day (the name of the day of the week) and the integer value for the day of the week (use a function).
+- Order by the integer value of the day of the week using the same function used in GROUP BY.
+
+-- Select name of the day of the week the request was created 
+SELECT to_char(date_created, 'day') AS day, 
+       -- Select avg time between request creation and completion
+       avg(date_completed - date_created) AS duration 
+  FROM evanston311 
+ -- Group by the name of the day of the week and 
+ -- integer value of day of week the request was created
+ GROUP BY day, EXTRACT(DOW FROM date_created) 
+ -- Order by integer value of the day of the week 
+ -- the request was created
+ ORDER BY EXTRACT(DOW FROM date_created);
